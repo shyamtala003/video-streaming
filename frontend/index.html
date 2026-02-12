@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Streaming</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: sans-serif;
+      background: #f7f7f8;
+    }
+
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    video {
+      width: 100%;
+      max-height: 70vh;
+      background: #000;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    input {
+      flex: 1;
+      min-width: 280px;
+      padding: 10px;
+    }
+
+    button {
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>HLS Player</h1>
+    <div class="row">
+      <input
+        id="url"
+        type="text"
+        value="http://localhost:5000/videos/REPLACE_WITH_FILENAME.mp4/720p.m3u8"
+      />
+      <button id="loadBtn" type="button">Load Stream</button>
+    </div>
+    <video id="video" controls></video>
+    <p id="status"></p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+    const video = document.getElementById("video");
+    const urlInput = document.getElementById("url");
+    const loadBtn = document.getElementById("loadBtn");
+    const statusEl = document.getElementById("status");
+
+    let hlsInstance = null;
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function loadStream(url) {
+      if (!url) {
+        setStatus("Enter a valid .m3u8 URL.");
+        return;
+      }
+
+      if (hlsInstance) {
+        hlsInstance.destroy();
+        hlsInstance = null;
+      }
+
+      if (window.Hls && Hls.isSupported()) {
+        hlsInstance = new Hls();
+        hlsInstance.loadSource(url);
+        hlsInstance.attachMedia(video);
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () =>
+          setStatus("Stream loaded.")
+        );
+        hlsInstance.on(Hls.Events.ERROR, (_, data) =>
+          setStatus(`Playback error: ${data?.details || "unknown error"}`)
+        );
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = url;
+        setStatus("Stream loaded (native HLS).");
+      } else {
+        setStatus("HLS is not supported in this browser.");
+      }
+    }
+
+    loadBtn.addEventListener("click", () => loadStream(urlInput.value.trim()));
+  </script>
+</body>
+</html>
