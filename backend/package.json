@@ -1,0 +1,20 @@
+{
+  "name": "video_streaming",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bullmq": "^5.68.0",
+    "express": "^5.2.1",
+    "ioredis": "^5.9.2",
+    "multer": "^2.0.2",
+    "uuid": "^13.0.0"
+  }
+}
