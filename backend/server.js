@@ -60,7 +60,8 @@ app.get("/jobs/:id", async (req, res) => {
   });
 });
 
-app.use("/videos", express.static("storage/hls"));
+app.use("/videos/stream", express.static("storage/hls"));
+app.use("/videos/static", express.static("storage/originals"));
 app.use("/frontend", express.static(frontendDir));
 
 app.get("/player", (req, res) => {
