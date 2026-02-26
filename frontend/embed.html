@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Embedded Video Player</title>
+  <link href="https://vjs.zencdn.net/8.23.4/video-js.css" rel="stylesheet" />
+  <link href="https://unpkg.com/@videojs/themes@1/dist/fantasy/index.css" rel="stylesheet" />
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      font-family: "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .wrap {
+      position: fixed;
+      inset: 0;
+      background: #000;
+    }
+
+    .video-js {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .video-js .vjs-tech {
+      object-fit: contain;
+      object-position: center center;
+    }
+
+    .video-js .vjs-control-bar {
+      background-color: rgba(0, 0, 0, 0.3) !important;
+      backdrop-filter: blur(12px);
+    }
+
+    #error {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 16px;
+      z-index: 10;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <video id="player" class="video-js vjs-theme-fantasy" controls playsinline preload="auto"></video>
+    <div id="error"></div>
+  </div>
+
+  <script src="https://vjs.zencdn.net/8.23.4/video.min.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const errorEl = document.getElementById("error");
+
+    const src = params.get("src");
+    const autoplay = params.get("autoplay") === "1";
+    const muted = params.get("muted") === "1";
+    const quality = params.get("quality") || "720p";
+
+    const showError = (message) => {
+      errorEl.style.display = "flex";
+      errorEl.textContent = message;
+    };
+
+    const withQuality = (url, q) =>
+      url.replace(/(240p|360p|720p)\.m3u8$/, `${q}.m3u8`);
+
+    if (!src) {
+      showError("Missing `src` query parameter.");
+    } else {
+      const finalSrc = withQuality(src, quality);
+
+      const player = videojs("player", {
+        autoplay,
+        muted,
+        controls: true,
+        responsive: false,
+        fluid: false,
+        fill: false,
+        sources: [
+          {
+            src: finalSrc,
+            type: "application/x-mpegURL",
+          },
+        ],
+      });
+
+      // Improve playback resiliency for small HLS buffer gaps.
+      player.ready(() => {
+        player.on("error", () => {
+          const err = player.error();
+          if (!err) return;
+
+          // Media errors can often recover by reloading the current source.
+          if (err.code === 3) {
+            const wasPaused = player.paused();
+            const currentTime = player.currentTime() || 0;
+            player.src({ src: finalSrc, type: "application/x-mpegURL" });
+            player.ready(() => {
+              player.currentTime(currentTime);
+              if (!wasPaused) player.play().catch(() => { });
+            });
+            return;
+          }
+
+          showError(err.message || "Playback error");
+        });
+      });
+    }
+  </script>
+</body>
+
+</html>

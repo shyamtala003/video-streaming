@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -31,7 +32,8 @@
       flex-wrap: wrap;
     }
 
-    input {
+    input,
+    select {
       flex: 1;
       min-width: 280px;
       padding: 10px;
@@ -41,21 +43,32 @@
       padding: 10px 14px;
       cursor: pointer;
     }
+
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      padding: 10px;
+      font-family: monospace;
+    }
   </style>
 </head>
+
 <body>
   <main class="container">
     <h1>HLS Player</h1>
     <div class="row">
-      <input
-        id="url"
-        type="text"
-        value="http://localhost:5000/videos/REPLACE_WITH_FILENAME.mp4/720p.m3u8"
-      />
+      <input id="url" type="text" value="http://localhost:5000/videos/REPLACE_WITH_FILENAME.mp4/720p.m3u8" />
+      <select id="quality">
+        <option value="240p">240p</option>
+        <option value="360p">360p</option>
+        <option value="720p" selected>720p</option>
+      </select>
       <button id="loadBtn" type="button">Load Stream</button>
     </div>
     <video id="video" controls></video>
     <p id="status"></p>
+    <h2>Embed</h2>
+    <textarea id="iframeCode" readonly></textarea>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -63,7 +76,9 @@
     const video = document.getElementById("video");
     const urlInput = document.getElementById("url");
     const loadBtn = document.getElementById("loadBtn");
+    const qualitySelect = document.getElementById("quality");
     const statusEl = document.getElementById("status");
+    const iframeCodeEl = document.getElementById("iframeCode");
 
     let hlsInstance = null;
 
@@ -71,11 +86,33 @@
       statusEl.textContent = text;
     }
 
+    function getQualityUrl(baseUrl, quality) {
+      return baseUrl.replace(/(240p|360p|720p)\.m3u8$/, `${quality}.m3u8`);
+    }
+
+    function getPlayerUrl(streamUrl) {
+      const base =
+        window.location.protocol.startsWith("http")
+          ? window.location.origin
+          : "http://localhost:5000";
+      return `${base}/player?src=${encodeURIComponent(streamUrl)}`;
+    }
+
+    function updateIframeCode(streamUrl) {
+      const playerUrl = getPlayerUrl(streamUrl);
+      iframeCodeEl.value =
+        `<iframe src="${playerUrl}" ` +
+        `width="960" height="540" frameborder="0" ` +
+        `allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+    }
+
     function loadStream(url) {
       if (!url) {
         setStatus("Enter a valid .m3u8 URL.");
         return;
       }
+
+      updateIframeCode(url);
 
       if (hlsInstance) {
         hlsInstance.destroy();
@@ -100,7 +137,34 @@
       }
     }
 
+    function switchResolution() {
+      const currentUrl = urlInput.value.trim();
+      if (!currentUrl) return;
+
+      const nextUrl = getQualityUrl(currentUrl, qualitySelect.value);
+      const wasPlaying = !video.paused;
+      const currentTime = video.currentTime || 0;
+
+      urlInput.value = nextUrl;
+      loadStream(nextUrl);
+
+      const restorePosition = () => {
+        video.currentTime = currentTime;
+        if (wasPlaying) {
+          video.play().catch(() => { });
+        }
+      };
+
+      video.addEventListener("loadedmetadata", restorePosition, { once: true });
+    }
+
     loadBtn.addEventListener("click", () => loadStream(urlInput.value.trim()));
+    qualitySelect.addEventListener("change", switchResolution);
+    updateIframeCode(urlInput.value.trim());
   </script>
+
+  <iframe src="http://localhost:5000/videos/17623cb1-fdaf-49df-8315-90313132c417.mp4/720p.m3u8" width="960" height="540"
+    frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
 </body>
+
 </html>

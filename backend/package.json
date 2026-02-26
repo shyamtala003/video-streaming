@@ -11,10 +11,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "bullmq": "^5.68.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "ioredis": "^5.9.2",
     "multer": "^2.0.2",
     "uuid": "^13.0.0"
   }

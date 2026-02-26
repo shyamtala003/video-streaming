@@ -1,12 +1,14 @@
 import express from "express";
-import { QueueEvents } from "bullmq";
+import path from "path";
+import { fileURLToPath } from "url";
 import upload from "./api/upload.controller.js";
-import videoQueue, { connection } from "./workers/queue.js";
+import videoQueue, { queueEvents } from "./workers/queue.js";
 import cors from "cors";
-import "./workers/transcoder.js";
 
 const app = express();
-const queueEvents = new QueueEvents("video-processing", { connection });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDir = path.resolve(__dirname, "../frontend");
 
 app.use(cors({ origin: "*" }));
 
@@ -46,11 +48,10 @@ app.get("/jobs/:id", async (req, res) => {
     return;
   }
 
-  const state = await job.getState();
   res.json({
     id: job.id,
     name: job.name,
-    state,
+    state: job.state,
     progress: job.progress,
     data: job.data,
     failedReason: job.failedReason || null,
@@ -60,5 +61,10 @@ app.get("/jobs/:id", async (req, res) => {
 });
 
 app.use("/videos", express.static("storage/hls"));
+app.use("/frontend", express.static(frontendDir));
+
+app.get("/player", (req, res) => {
+  res.sendFile(path.join(frontendDir, "embed.html"));
+});
 
 app.listen(5000);
