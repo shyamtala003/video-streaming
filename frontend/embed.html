@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -55,7 +54,6 @@
     }
   </style>
 </head>
-
 <body>
   <div class="wrap">
     <video id="player" class="video-js vjs-theme-fantasy" controls playsinline preload="auto"></video>
@@ -63,6 +61,8 @@
   </div>
 
   <script src="https://vjs.zencdn.net/8.23.4/video.min.js"></script>
+  <script src="https://unpkg.com/videojs-contrib-quality-levels@4.1.0/dist/videojs-contrib-quality-levels.min.js"></script>
+  <script src="https://unpkg.com/videojs-hls-quality-selector@2.0.0/dist/videojs-hls-quality-selector.js"></script>
   <script>
     const params = new URLSearchParams(window.location.search);
     const errorEl = document.getElementById("error");
@@ -70,20 +70,39 @@
     const src = params.get("src");
     const autoplay = params.get("autoplay") === "1";
     const muted = params.get("muted") === "1";
-    const quality = params.get("quality") || "720p";
 
     const showError = (message) => {
       errorEl.style.display = "flex";
       errorEl.textContent = message;
     };
 
-    const withQuality = (url, q) =>
-      url.replace(/(240p|360p|720p)\.m3u8$/, `${q}.m3u8`);
+    const normalizeSrc = (value) => {
+      if (!value) return "";
+      let normalized = value.trim();
 
-    if (!src) {
+      if (!/^https?:\/\//i.test(normalized)) {
+        normalized = `http://${normalized}`;
+      }
+
+      if (!/\.m3u8($|\?)/i.test(normalized)) {
+        normalized = normalized.endsWith("/")
+          ? `${normalized}master.m3u8`
+          : `${normalized}/master.m3u8`;
+      }
+
+      return normalized;
+    };
+
+    const toMasterSrc = (url) =>
+      url.replace(/(1080p|720p|360p|240p|master)\.m3u8$/i, "master.m3u8");
+
+    const baseSrc = normalizeSrc(src);
+
+    if (!baseSrc) {
       showError("Missing `src` query parameter.");
     } else {
-      const finalSrc = withQuality(src, quality);
+      const masterSrc = toMasterSrc(baseSrc);
+      let activeSrc = masterSrc;
 
       const player = videojs("player", {
         autoplay,
@@ -92,28 +111,41 @@
         responsive: false,
         fluid: false,
         fill: false,
+        html5: {
+          vhs: {
+            overrideNative: true,
+          },
+          nativeAudioTracks: false,
+          nativeVideoTracks: false,
+        },
         sources: [
           {
-            src: finalSrc,
+            src: activeSrc,
             type: "application/x-mpegURL",
           },
         ],
       });
 
-      // Improve playback resiliency for small HLS buffer gaps.
       player.ready(() => {
+        // Adds quality selector button in control bar (Video.js 8 compatible plugin).
+        if (typeof player.hlsQualitySelector === "function") {
+          player.hlsQualitySelector({
+            displayCurrentQuality: true,
+          });
+        }
+
         player.on("error", () => {
           const err = player.error();
           if (!err) return;
 
-          // Media errors can often recover by reloading the current source.
+          // Media errors can often recover by reloading current source.
           if (err.code === 3) {
             const wasPaused = player.paused();
             const currentTime = player.currentTime() || 0;
-            player.src({ src: finalSrc, type: "application/x-mpegURL" });
+            player.src({ src: activeSrc, type: "application/x-mpegURL" });
             player.ready(() => {
               player.currentTime(currentTime);
-              if (!wasPaused) player.play().catch(() => { });
+              if (!wasPaused) player.play().catch(() => {});
             });
             return;
           }
@@ -124,5 +156,4 @@
     }
   </script>
 </body>
-
 </html>
